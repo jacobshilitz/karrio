@@ -1,6 +1,7 @@
 import io
 import base64
 import logging
+import requests
 
 from rest_framework import status
 from rest_framework.request import Request
@@ -267,6 +268,18 @@ class ShipmentDocs(VirtualDownloadView):
         query_params = request.GET.dict()
 
         self.document = getattr(shipment, doc, None)
+
+        if shipment.label_type == "ZPL" and format.lower() != "zpl":
+            url = "http://api.labelary.com/v1/printers/8dpmm/labels/4x6/0/"
+            files = {"file": base64.b64decode(self.document)}
+            headers = {
+                "Accept": "application/pdf"
+            }  # omit this line to get PNG images back
+            response = requests.post(url, headers=headers, files=files, stream=True)
+
+            if response.status_code == 200:
+                self.document = base64.b64encode(response.content)
+
         self.name = f"{doc}_{shipment.tracking_number}.{format}"
         self.attachment = query_params.get("download", False)
 
