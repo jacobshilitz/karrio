@@ -38,6 +38,20 @@ class Settings(core.Settings):
 
         return new_auth["token"]
 
+    #  for testing only
+    @property
+    def carrier_services_metadata(self):
+        result = lib.request(
+            url=f"{self.server_url}/api/carrier-services",
+            method="GET",
+            headers={
+                "content-Type": "application/json",
+                "Authorization": f"Bearer {self.access_token}",
+            },
+        )
+        response = lib.to_dict(result)
+        return {**response}
+
 
 def login(settings: Settings):
     """Sign in response
