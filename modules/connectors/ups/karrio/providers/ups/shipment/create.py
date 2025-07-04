@@ -403,7 +403,7 @@ def shipment_request(
                         InternationalForms=lib.identity(
                             ups.InternationalFormsType(
                                 FormType=(
-                                    "07" if options.paperless_trade.state else "01"
+                                    "01"
                                 ),
                                 UserCreatedForm=[
                                     ups.UserCreatedFormType(DocumentID=doc["doc_id"])
