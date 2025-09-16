@@ -320,7 +320,7 @@ def shipment_request(
                                             provider_units.UploadDocumentType.map(
                                                 doc["doc_name"]
                                             ).value
-                                            or "COMMERCIAL_INVOICE"
+                                            or "USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"
                                         ),
                                         documentReference=(
                                             payload.reference
@@ -334,7 +334,7 @@ def shipment_request(
                                 if (options.doc_files.state or [])
                                 else []
                             ),
-                            requestedDocumentTypes=["COMMERCIAL_INVOICE"],
+                            requestedDocumentTypes=["USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"],
                         )
                         if options.fedex_electronic_trade_documents.state
                         else None
@@ -397,7 +397,7 @@ def shipment_request(
             variableHandlingChargeDetail=None,
             customsClearanceDetail=lib.identity(
                 fedex.CustomsClearanceDetailType(
-                    regulatoryControls=None,
+                    regulatoryControls="USMCA",
                     brokers=[],
                     commercialInvoice=fedex.CommercialInvoiceType(
                         originatorName=lib.text(
