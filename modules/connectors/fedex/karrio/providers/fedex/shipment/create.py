@@ -589,8 +589,59 @@ def shipment_request(
                     returnInstructionsDetail=None,
                     op900Detail=None,
                     usmcaCertificationOfOriginDetail=None,
-                    usmcaCommercialInvoiceCertificationOfOriginDetail=None,
-                    shippingDocumentTypes=["COMMERCIAL_INVOICE"],
+                    usmcaCommercialInvoiceCertificationOfOriginDetail=fedex.UsmcaCCertificationOfOriginDetailType(
+                        customerImageUsages=[
+                            fedex.CustomerImageUsageType(
+                                id="IMAGE_1",
+                                type="SIGNATURE",
+                                providedImageType="SIGNATURE",
+                            )
+                        ],
+                        documentFormat=fedex.DocumentFormatType(
+                            provideInstructions=None,
+                            optionsRequested=None,
+                            stockType="PAPER_LETTER",
+                            dispositions=[],
+                            locale=None,
+                            docType="PDF",
+                        ),
+                        certifierSpecification="EXPORTER",
+                        importerSpecification="UNKNOWN",
+                        producerSpecification="SAME_AS_EXPORTER",
+                        producer=fedex.ShipperType(
+                            contact=lib.identity(
+                                    fedex.ResponsiblePartyContactType(
+                                        personName=lib.text(
+                                            duty_billing_address.contact, max=35
+                                        ),
+                                        emailAddress=duty_billing_address.email,
+                                        phoneNumber=duty_billing_address.phone_number,
+                                        phoneExtension=None,
+                                        companyName=lib.text(
+                                            duty_billing_address.company_name, max=35
+                                        ),
+                                        faxNumber=None,
+                                    )
+                                    if duty_billing_address
+                                    else None
+                                ),
+                            address=lib.identity(
+                                fedex.AddressType(
+                                    streetLines=duty_billing_address.address_lines,
+                                    city=duty_billing_address.city,
+                                    stateOrProvinceCode=provider_utils.state_code(
+                                        duty_billing_address
+                                    ),
+                                    postalCode=duty_billing_address.postal_code,
+                                    countryCode=duty_billing_address.country_code,
+                                    residential=duty_billing_address.residential,
+                                )
+                                if duty_billing_address
+                                else None
+                            ),
+                        )
+                    ),
+                    shippingDocumentTypes=["USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"],
                     certificateOfOrigin=None,
                     commercialInvoiceDetail=fedex.CertificateOfOriginType(
                         customerImageUsages=[],
