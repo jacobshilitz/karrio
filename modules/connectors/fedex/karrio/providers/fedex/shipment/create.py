@@ -527,7 +527,9 @@ def shipment_request(
                             exportLicenseExpirationDate=None,
                             partNumber=item.sku,
                             purpose=None,
-                            usmcaDetail=None,
+                            usmcaDetail=fedex.UsmcaDetailType(
+                                originCriterion="A"
+                            )
                         )
                         for item in customs.commodities
                     ],
