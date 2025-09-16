@@ -313,12 +313,6 @@ def shipment_request(
                     ),
                     etdDetail=lib.identity(
                         fedex.EtdDetailType(
-                            attributes=(
-                                None
-                                if options.doc_files.state
-                                or options.doc_references.state
-                                else ["POST_SHIPMENT_UPLOAD_REQUESTED"]
-                            ),
                             attachedDocuments=(
                                 [
                                     fedex.AttachedDocumentType(
@@ -612,7 +606,7 @@ def shipment_request(
                 )
                 if (
                     customs.commercial_invoice is True
-                    and not packages.options.fedex_electronic_trade_documents.state
+                    or packages.options.fedex_electronic_trade_documents.state
                 )
                 else None
             ),
