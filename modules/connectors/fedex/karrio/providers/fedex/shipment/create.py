@@ -397,7 +397,7 @@ def shipment_request(
             variableHandlingChargeDetail=None,
             customsClearanceDetail=lib.identity(
                 fedex.CustomsClearanceDetailType(
-                    regulatoryControls="USMCA",
+                    regulatoryControls=["USMCA"],
                     brokers=[],
                     commercialInvoice=fedex.CommercialInvoiceType(
                         originatorName=lib.text(
