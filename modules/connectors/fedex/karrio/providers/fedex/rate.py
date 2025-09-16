@@ -190,7 +190,14 @@ def rate_request(
                     ),
                     groupPackageCount=1,
                     contentRecord=[],
-                    declaredValue=package.options.declared_value.state,
+                    declaredValue=fedex.FixedValueType(
+                        amount=lib.identity(
+                            lib.to_money(package.total_value)
+                            or lib.to_money(package.options.declared_value.state)
+                            or 1.0
+                        ),
+                        currency=lib.identity(package.options.currency.state or "USD"),
+                    ),  
                     weight=fedex.WeightType(
                         units=package.weight.unit,
                         value=package.weight.value,
