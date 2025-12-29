@@ -444,15 +444,14 @@ def shipment_request(
                         LabelDelivery=None,
                         InternationalForms=lib.identity(
                             ups.InternationalFormsType(
+                                # CUSTOMIZATION: FormType logic migrated from v2024.9.13 (commit 3cba371)
+                                # Uses "07" for Customer Generated Forms when documents are uploaded,
+                                # otherwise "01" for Invoice (UPS handles paperless electronically)
                                 FormType=lib.identity(
-                                    "07"
+                                    "07"  # Customer Generated Forms (when documents are uploaded)
                                     if options.paperless_trade.state
                                     and any(options.doc_references.state or [])
-                                    else (
-                                        "03"
-                                        if options.paperless_trade.state  # API-generated commercial invoice
-                                        else "01"
-                                    )  # Traditional paper forms
+                                    else "01"  # Invoice (UPS handles paperless electronically based on account settings)
                                 ),
                                 UserCreatedForm=[
                                     ups.UserCreatedFormType(DocumentID=doc["doc_id"])
