@@ -1,3 +1,3 @@
 [submodule "community"]
 path = community
-url = https://github.com/karrioapi/community.git
+url = https://github.com/jacobshilitz/karrio-community
