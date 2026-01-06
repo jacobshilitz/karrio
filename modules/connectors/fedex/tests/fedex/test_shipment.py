@@ -734,7 +734,7 @@ MultiPieceShipmentRequest = {
         "shipDatestamp": ANY,
         "shipmentSpecialServices": {
             "etdDetail": {
-                "attributes": ["POST_SHIPMENT_UPLOAD_REQUESTED"],
+                "attributes": None,
                 "requestedDocumentTypes": ["COMMERCIAL_INVOICE"],
             },
             "specialServiceTypes": ["ELECTRONIC_TRADE_DOCUMENTS"],

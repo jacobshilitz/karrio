@@ -10,6 +10,15 @@ import karrio.providers.fedex.utils as provider_utils
 import karrio.providers.fedex.units as provider_units
 
 
+def is_usmca_eligible(shipper_country: str, recipient_country: str) -> bool:
+    """Check if shipment is eligible for USMCA customs handling (US, CA, MX)."""
+    USMCA_COUNTRIES = {"US", "CA", "MX"}
+    return (
+        (shipper_country in USMCA_COUNTRIES and recipient_country in USMCA_COUNTRIES) and
+        shipper_country != recipient_country
+    )
+
+
 def parse_shipment_response(
     _response: lib.Deserializable[typing.List[dict]],
     settings: provider_utils.Settings,
@@ -127,6 +136,11 @@ def shipment_request(
     is_intl = lib.identity(
         shipper.country_code != recipient.country_code
         or (shipper.country_code == "IN" and recipient.country_code == "IN")
+    )
+    is_usmca = lib.identity(
+        is_usmca_eligible(shipper.country_code, recipient.country_code)
+        if is_intl
+        else False
     )
     shipment_date = lib.to_date(options.shipment_date.state or datetime.datetime.now())
     label_type, label_format = lib.identity(
@@ -348,12 +362,7 @@ def shipment_request(
                     ),
                     etdDetail=lib.identity(
                         fedex.EtdDetailType(
-                            attributes=lib.identity(
-                                None
-                                if options.doc_files.state
-                                or options.doc_references.state
-                                else ["POST_SHIPMENT_UPLOAD_REQUESTED"]
-                            ),
+                            attributes=None,
                             attachedDocuments=lib.identity(
                                 [
                                     fedex.AttachedDocumentType(
@@ -361,7 +370,11 @@ def shipment_request(
                                             provider_units.UploadDocumentType.map(
                                                 doc["doc_type"]
                                             ).value
-                                            or "COMMERCIAL_INVOICE"
+                                            or (
+                                                "USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"
+                                                if is_usmca and payload.customs is not None and is_intl
+                                                else "COMMERCIAL_INVOICE"
+                                            )
                                         ),
                                         documentReference=(
                                             payload.reference
@@ -376,7 +389,11 @@ def shipment_request(
                                 if (options.doc_files.state or [])
                                 else []
                             ),
-                            requestedDocumentTypes=["COMMERCIAL_INVOICE"],
+                            requestedDocumentTypes=lib.identity(
+                                ["USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"]
+                                if is_usmca and payload.customs is not None and is_intl
+                                else ["COMMERCIAL_INVOICE"]
+                            ),
                         )
                         if options.fedex_electronic_trade_documents.state
                         else None
@@ -441,7 +458,11 @@ def shipment_request(
             variableHandlingChargeDetail=None,
             customsClearanceDetail=lib.identity(
                 fedex.CustomsClearanceDetailType(
-                    regulatoryControls=None,
+                    regulatoryControls=lib.identity(
+                        ["USMCA"]
+                        if is_usmca and payload.customs is not None and is_intl
+                        else None
+                    ),
                     brokers=[],
                     commercialInvoice=fedex.CommercialInvoiceType(
                         originatorName=lib.text(
@@ -584,7 +605,13 @@ def shipment_request(
                             exportLicenseExpirationDate=None,
                             partNumber=item.sku,
                             purpose=None,
-                            usmcaDetail=None,
+                            usmcaDetail=lib.identity(
+                                fedex.UsmcaDetailType(
+                                    originCriterion="A"
+                                )
+                                if is_usmca
+                                else None
+                            ),
                         )
                         for item in customs.commodities
                     ],
@@ -648,8 +675,72 @@ def shipment_request(
                     returnInstructionsDetail=None,
                     op900Detail=None,
                     usmcaCertificationOfOriginDetail=None,
-                    usmcaCommercialInvoiceCertificationOfOriginDetail=None,
-                    shippingDocumentTypes=["COMMERCIAL_INVOICE"],
+                    usmcaCommercialInvoiceCertificationOfOriginDetail=lib.identity(
+                        fedex.UsmcaCCertificationOfOriginDetailType(
+                            customerImageUsages=[
+                                fedex.CustomerImageUsageType(
+                                    id="IMAGE_1",
+                                    type="SIGNATURE",
+                                    providedImageType="SIGNATURE",
+                                )
+                            ],
+                            documentFormat=fedex.DocumentFormatType(
+                                provideInstructions=None,
+                                optionsRequested=None,
+                                stockType="PAPER_LETTER",
+                                dispositions=[],
+                                locale=None,
+                                docType="PDF",
+                            ),
+                            certifierSpecification="EXPORTER",
+                            importerSpecification="UNKNOWN",
+                            producerSpecification="SAME_AS_EXPORTER",
+                            producer=lib.identity(
+                                fedex.ShipperType(
+                                    contact=lib.identity(
+                                        fedex.ContactType(
+                                            personName=lib.text(
+                                                (duty_billing_address or shipper).contact, max=35
+                                            ),
+                                            emailAddress=(duty_billing_address or shipper).email,
+                                            phoneNumber=lib.text(
+                                                (duty_billing_address or shipper).phone_number
+                                                or "000-000-0000",
+                                                max=15,
+                                                trim=True,
+                                            ),
+                                            phoneExtension=None,
+                                            companyName=lib.text(
+                                                (duty_billing_address or shipper).company_name, max=35
+                                            ),
+                                            faxNumber=None,
+                                        )
+                                    ),
+                                    address=lib.identity(
+                                        fedex.AddressType(
+                                            streetLines=(duty_billing_address or shipper).address_lines,
+                                            city=(duty_billing_address or shipper).city,
+                                            stateOrProvinceCode=provider_utils.state_code(
+                                                duty_billing_address or shipper
+                                            ),
+                                            postalCode=(duty_billing_address or shipper).postal_code,
+                                            countryCode=(duty_billing_address or shipper).country_code,
+                                            residential=(duty_billing_address or shipper).residential,
+                                        )
+                                    ),
+                                )
+                                if (duty_billing_address.address or shipper.address)
+                                else None
+                            ),
+                        )
+                        if is_usmca and payload.customs is not None and is_intl
+                        else None
+                    ),
+                    shippingDocumentTypes=lib.identity(
+                        ["USMCA_COMMERCIAL_INVOICE_CERTIFICATION_OF_ORIGIN"]
+                        if is_usmca and payload.customs is not None and is_intl
+                        else ["COMMERCIAL_INVOICE"]
+                    ),
                     certificateOfOrigin=None,
                     commercialInvoiceDetail=fedex.CertificateOfOriginType(
                         customerImageUsages=[],

@@ -218,7 +218,7 @@ class RecipientCustomsIDType:
 
 @attr.s(auto_attribs=True)
 class CustomsClearanceDetailType:
-    regulatoryControls: typing.Optional[str] = None
+    regulatoryControls: typing.Optional[typing.List[str]] = None
     brokers: typing.Optional[typing.List[BrokerType]] = jstruct.JList[BrokerType]
     commercialInvoice: typing.Optional[CommercialInvoiceType] = jstruct.JStruct[
         CommercialInvoiceType
