@@ -137,6 +137,12 @@ def shipment_request(
         packages.validate(required=["weight"])
 
     country_pair = f"{shipper.country_code}/{recipient.country_code}"
+    is_cusma = (
+        payload.customs is not None
+        and provider_utils.is_cusma_eligible(
+            shipper.country_code, recipient.country_code
+        )
+    )
     charges = [
         ("01", payment, biling_address),
         *([("02", customs.duty, duty_billing_address)] if customs is not None else []),
@@ -460,7 +466,9 @@ def shipment_request(
                                 UPSPremiumCareForm=None,
                                 CN22Form=None,
                                 AdditionalDocumentIndicator=None,
-                                FormGroupIdName=None,
+                                FormGroupIdName=(
+                                    "USMCA Form" if is_cusma else None
+                                ),
                                 EEIFilingOption=None,
                                 Contacts=lib.identity(
                                     ups.ContactsType(
@@ -500,7 +508,7 @@ def shipment_request(
                                             EMailAddress=recipient.email,
                                         ),
                                     )
-                                    if not options.paperless_trade.state
+                                    if not options.paperless_trade.state or is_cusma
                                     else None
                                 ),
                                 Product=[
@@ -525,7 +533,9 @@ def shipment_request(
                                         JointProductionIndicator=None,
                                         NetCostCode=None,
                                         NetCostDateRange=None,
-                                        PreferenceCriteria=None,
+                                        PreferenceCriteria=(
+                                            "A" if is_cusma else None
+                                        ),
                                         ProducerInfo=None,
                                         MarksAndNumbers=None,
                                         NumberOfPackagesPerCommodity="1",
@@ -567,7 +577,11 @@ def shipment_request(
                                     customs.content_type
                                 ).value,
                                 Comments=None,
-                                DeclarationStatement="I hereby certify that the information on this invoice is true and correct and the contents and value of this shipment is as stated above.",
+                                DeclarationStatement=(
+                                    "I hereby certify that the goods covered by this shipment qualify as originating goods for purposes of preferential tariff treatment under the USMCA. I hereby certify that the information on this invoice is true and correct and the contents and value of this shipment is as stated above."
+                                    if is_cusma
+                                    else "I hereby certify that the information on this invoice is true and correct and the contents and value of this shipment is as stated above."
+                                ),
                                 Discount=None,
                                 FreightCharges=None,
                                 InsuranceCharges=lib.identity(

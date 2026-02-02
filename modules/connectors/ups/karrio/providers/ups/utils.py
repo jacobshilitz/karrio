@@ -56,3 +56,21 @@ class Settings(BaseSettings):
 
 
 SUPPORTED_COUNTRY_CURRENCY = ["US", "CA", "FR", "FR", "AU"]
+
+# USMCA/CUSMA countries (Canada-United States-Mexico Agreement). UPS International
+# Forms FormType 04 = USMCA; applies when origin and destination are in this set.
+CUSMA_COUNTRIES = frozenset({"US", "CA", "MX"})
+
+
+def is_cusma_eligible(origin_country: str, destination_country: str) -> bool:
+    """Check if shipment is eligible for CUSMA/USMCA customs (US, CA, MX cross-border).
+
+    Per UPS API: USMCA form (FormType 04) applies to shipments between US, Canada,
+    and Mexico. Both origin and destination must be in CUSMA and the movement must
+    be international (different countries).
+    """
+    return (
+        origin_country in CUSMA_COUNTRIES
+        and destination_country in CUSMA_COUNTRIES
+        and origin_country != destination_country
+    )
