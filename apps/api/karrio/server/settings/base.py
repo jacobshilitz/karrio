@@ -200,6 +200,7 @@ AUDIT_LOGGING = importlib.util.find_spec(  # type:ignore
     "karrio.server.audit"
 ) is not None and config("AUDIT_LOGGING", default=True, cast=bool)
 PERSIST_SDK_TRACING = config("PERSIST_SDK_TRACING", default=True, cast=bool)
+PERSIST_TRACKER_TRACING = config("PERSIST_TRACKER_TRACING", default=False, cast=bool)
 WORKFLOW_MANAGEMENT = (
     importlib.util.find_spec("karrio.server.automation") is not None  # type:ignore
 ) and config("WORKFLOW_MANAGEMENT", default=(True if DEBUG else False), cast=bool)
