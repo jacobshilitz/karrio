@@ -586,16 +586,16 @@ class APIKeyType:
 
 @strawberry.type
 class MessageType:
-    carrier_name: typing.Optional[str]
-    carrier_id: typing.Optional[str]
-    message: typing.Optional[str]
-    code: typing.Optional[str]
+    carrier_name: typing.Optional[str] = None
+    carrier_id: typing.Optional[str] = None
+    message: typing.Optional[str] = None
+    code: typing.Optional[str] = None
     details: typing.Optional[utils.JSON] = None
 
     @staticmethod
-    def parse(charge: dict):
+    def parse(msg: dict):
         return MessageType(
-            **{k: v for k, v in charge.items() if k in MessageType.__annotations__}
+            **{k: msg.get(k) for k in MessageType.__annotations__}
         )
 
 
