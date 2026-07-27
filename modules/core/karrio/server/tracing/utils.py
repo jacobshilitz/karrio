@@ -72,7 +72,7 @@ def save_tracing_records(context, tracer: lib.Tracer = None, schema: str = None)
 
 @utils.error_wrapper
 def bulk_save_tracing_records(tracer: lib.Tracer, context=None):
-    if conf.settings.PERSIST_SDK_TRACING is False:
+    if not getattr(conf.settings, "PERSIST_TRACKER_TRACING", False):
         return
 
     if len(tracer.records) == 0 or context is None:
