@@ -796,6 +796,27 @@ def get_carrier_tracking_link(carrier, tracking_number: str):
     return tracking_url.format(tracking_number) if tracking_url is not None else None
 
 
+def purchased_hub_tracking_link(shipment) -> typing.Optional[str]:
+    """Public tracking URL a hub returned with the label.
+
+    After purchase the tracker is attached to the underlying carrier. That
+    carrier's tracking_url template is not the page the hub already provided
+    (Purolator's template is the USPS tracker).
+    """
+    if shipment is None:
+        return None
+
+    selected = getattr(shipment, "selected_rate_carrier", None)
+    is_hub = lib.failsafe(lambda: selected.gateway.is_hub) is True
+    if not is_hub:
+        return None
+
+    link = (getattr(shipment, "meta", None) or {}).get("carrier_tracking_link")
+    link = link.strip() if isinstance(link, str) else ""
+
+    return link or None
+
+
 def _ensure_picked_up_status(events: typing.List[dict]) -> typing.List[dict]:
     """Transform the chronologically first in_transit event to picked_up if none exists."""
     if not events or any(e.get("status") == "picked_up" for e in events):

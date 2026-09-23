@@ -287,8 +287,13 @@ def update_tracker(tracker: models.Tracking, tracking_details: dict) -> models.T
             tracker.meta = {**(tracker.meta or {}), **meta}
             changes.append("meta")
 
-        # Update info - merge with existing info
+        # Update info - merge with existing info.
+        # A hub label already has the underlying carrier's public tracking page.
+        # Later polls through that carrier must not replace it with the connector template.
         info = tracking_details.get("info") or {}
+        hub_link = utils.purchased_hub_tracking_link(getattr(tracker, "shipment", None))
+        if hub_link:
+            info = {**info, "carrier_tracking_link": hub_link}
         if any(info.keys()) and info != tracker.info:
             tracker.info = serializers.process_dictionaries_mutations(
                 ["info"], dict(info=info), tracker
