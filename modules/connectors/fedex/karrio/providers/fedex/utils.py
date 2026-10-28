@@ -188,7 +188,7 @@ def _resolve_batch(
             for address in addresses
         ]
     }
-    response = lib.request(
+    raw = lib.request(
         url=f"{settings.server_url}/address/v1/addresses/resolve",
         method="POST",
         data=lib.to_json(payload),
@@ -197,9 +197,13 @@ def _resolve_batch(
             "authorization": f"Bearer {token}",
             "x-locale": "en_US",
         },
-        decoder=lib.to_dict,
+        decoder=parse_response,
+        on_error=lambda b: parse_response(b.read()),
         trace=settings.trace_as("json"),
     )
+    response = lib.to_dict(raw) if not isinstance(raw, dict) else raw
+    if not isinstance(response, dict):
+        return {}
 
     resolved: typing.Dict[str, str] = {}
     for entry in (response.get("output") or {}).get("resolvedAddresses") or []:
