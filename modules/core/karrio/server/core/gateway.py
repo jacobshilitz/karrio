@@ -157,6 +157,30 @@ class Address:
         return utils.identity(lambda: request.from_(provider.gateway).parse())
 
 
+def _apply_resolved_addresses(payload: dict, meta: dict = None) -> dict:
+    """Apply carrier-suggested cities from rate/shipment meta onto addresses.
+
+    FedEx (and others) put `resolved_addresses` on rate.meta; gateway merges that
+    into options before purchase. Re-applying here keeps shipper/recipient in the
+    persisted shipment aligned with what was sent to the carrier.
+    """
+    resolved = lib.identity(
+        (meta or {}).get("resolved_addresses")
+        or ((payload.get("options") or {}).get("resolved_addresses"))
+        or {}
+    )
+    if not resolved:
+        return payload
+
+    out = {**payload}
+    for key in ("shipper", "recipient", "return_address", "billing_address"):
+        addr = out.get(key)
+        patch = resolved.get(key) or {}
+        if isinstance(addr, dict) and patch.get("city"):
+            out[key] = {**addr, "city": patch["city"]}
+    return out
+
+
 class Shipments:
     @staticmethod
     @utils.with_telemetry("shipment_create")
@@ -183,13 +207,15 @@ class Shipments:
         if carrier is None:
             raise NotFound("No active carrier connection found to process the request")
 
-        payload = {
-            **lib.to_dict(payload),
-            "options": {
-                **(selected_rate.meta or {}),
-                **(payload.get("options") or {}),
-            },
-        }
+        payload = _apply_resolved_addresses(
+            {
+                **lib.to_dict(payload),
+                "options": {
+                    **(selected_rate.meta or {}),
+                    **(payload.get("options") or {}),
+                },
+            }
+        )
         request = lib.to_object(
             datatypes.ShipmentRequest,
             {
@@ -295,12 +321,15 @@ class Shipments:
             ]
 
         shipment_rate = process_selected_rate()
+        shipment_meta = process_meta(shipment)
+        # Prefer cities FedEx (etc.) actually shipped with — persists on save.
+        persisted = _apply_resolved_addresses(payload, meta=shipment_meta)
 
         return lib.to_object(
             datatypes.Shipment,
             {
                 "id": f"shp_{uuid.uuid4().hex}",
-                **payload,
+                **persisted,
                 **lib.to_dict(shipment),
                 "test_mode": carrier.test_mode,
                 "selected_rate": shipment_rate,
@@ -312,7 +341,7 @@ class Shipments:
                 "created_at": datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S.%f%z"
                 ),
-                "meta": process_meta(shipment),
+                "meta": shipment_meta,
                 "messages": messages,
             },
         )

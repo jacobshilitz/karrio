@@ -84,6 +84,11 @@ def _extract_details(
             service_name=service.name or rate.serviceName,
             transit_time=getattr(rate.operationalDetail, "transitTime", None),
             rate_zone=lib.failsafe(lambda: details.shipmentRateDetail.rateZone),
+            **(
+                {"resolved_addresses": ctx["resolved_addresses"]}
+                if ctx.get("resolved_addresses")
+                else {}
+            ),
         ),
     )
 
@@ -94,6 +99,11 @@ def rate_request(
 ) -> lib.Serializable:
     shipper = lib.to_address(payload.shipper)
     recipient = lib.to_address(payload.recipient)
+    labeled = dict(shipper=shipper, recipient=recipient)
+    cities = provider_utils.resolve_address_cities(
+        list(labeled.values()), settings
+    )
+    resolved_addresses = provider_utils.resolved_addresses_meta(labeled, cities)
     service = lib.to_services(payload.services, provider_units.ShippingService).first
     options = lib.to_shipping_options(
         payload.options,
@@ -188,9 +198,7 @@ def rate_request(
             shipper=fedex.ShipperClassType(
                 address=fedex.ResponsiblePartyAddressType(
                     streetLines=shipper.address_lines,
-                    city=provider_utils.normalize_city(
-                        shipper.city, shipper.postal_code, shipper.country_code
-                    ),
+                    city=provider_utils.resolved_city(shipper, settings, cities),
                     stateOrProvinceCode=provider_utils.state_code(shipper),
                     postalCode=shipper.postal_code,
                     countryCode=shipper.country_code,
@@ -200,11 +208,7 @@ def rate_request(
             recipient=fedex.ShipperClassType(
                 address=fedex.ResponsiblePartyAddressType(
                     streetLines=recipient.address_lines,
-                    city=provider_utils.normalize_city(
-                        recipient.city,
-                        recipient.postal_code,
-                        recipient.country_code,
-                    ),
+                    city=provider_utils.resolved_city(recipient, settings, cities),
                     stateOrProvinceCode=provider_utils.state_code(recipient),
                     postalCode=recipient.postal_code,
                     countryCode=recipient.country_code,
@@ -399,5 +403,8 @@ def rate_request(
     return lib.Serializable(
         request,
         lib.to_dict,
-        dict(shipment_date=shipment_date),
+        dict(
+            shipment_date=shipment_date,
+            resolved_addresses=resolved_addresses,
+        ),
     )

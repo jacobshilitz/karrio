@@ -94,6 +94,11 @@ def _extract_details(
             fedex_carrier_code=lib.failsafe(
                 lambda: shipment.completedShipmentDetail.carrierCode
             ),
+            **(
+                {"resolved_addresses": ctx.get("resolved_addresses")}
+                if ctx.get("resolved_addresses")
+                else {}
+            ),
         ),
     )
 
@@ -195,6 +200,23 @@ def shipment_request(
         if any(settings.connection_config.rate_request_types.state or [])
         else ["LIST", "ACCOUNT", *([] if "currency" not in options else ["PREFERRED"])]
     )
+    labeled = dict(
+        shipper=shipper,
+        recipient=recipient,
+        return_address=return_address,
+        billing_address=billing_address,
+        duty_billing_address=duty_billing_address,
+    )
+    # selected_rate.meta.resolved_addresses is merged into options by gateway
+    preferred = lib.failsafe(
+        lambda: (payload.options or {}).get("resolved_addresses")
+    ) or {}
+    cities = provider_utils.apply_preferred_cities(
+        labeled,
+        provider_utils.resolve_address_cities(list(labeled.values()), settings),
+        preferred,
+    )
+    resolved_addresses = provider_utils.resolved_addresses_meta(labeled, cities)
 
     requests = fedex.ShippingRequestType(
         mergeLabelDocOption=None,
@@ -211,9 +233,7 @@ def shipment_request(
             shipper=fedex.ShipperType(
                 address=fedex.AddressType(
                     streetLines=shipper.address_lines,
-                    city=provider_utils.normalize_city(
-                        shipper.city, shipper.postal_code, shipper.country_code
-                    ),
+                    city=provider_utils.resolved_city(shipper, settings, cities),
                     stateOrProvinceCode=provider_utils.state_code(shipper),
                     postalCode=shipper.postal_code,
                     countryCode=shipper.country_code,
@@ -241,11 +261,7 @@ def shipment_request(
                 fedex.ShipperType(
                     address=fedex.AddressType(
                         streetLines=recipient.address_lines,
-                        city=provider_utils.normalize_city(
-                            recipient.city,
-                            recipient.postal_code,
-                            recipient.country_code,
-                        ),
+                        city=provider_utils.resolved_city(recipient, settings, cities),
                         stateOrProvinceCode=provider_utils.state_code(recipient),
                         postalCode=recipient.postal_code,
                         countryCode=recipient.country_code,
@@ -286,10 +302,8 @@ def shipment_request(
                 fedex.OriginType(
                     address=fedex.AddressType(
                         streetLines=return_address.address_lines,
-                        city=provider_utils.normalize_city(
-                            return_address.city,
-                            return_address.postal_code,
-                            return_address.country_code,
+                        city=provider_utils.resolved_city(
+                            return_address, settings, cities
                         ),
                         stateOrProvinceCode=provider_utils.state_code(return_address),
                         postalCode=return_address.postal_code,
@@ -321,10 +335,8 @@ def shipment_request(
                         address=lib.identity(
                             fedex.AddressType(
                                 streetLines=billing_address.address_lines,
-                                city=provider_utils.normalize_city(
-                                    billing_address.city,
-                                    billing_address.postal_code,
-                                    billing_address.country_code,
+                                city=provider_utils.resolved_city(
+                                    billing_address, settings, cities
                                 ),
                                 stateOrProvinceCode=provider_utils.state_code(
                                     billing_address
@@ -517,10 +529,8 @@ def shipment_request(
                                     address=lib.identity(
                                         fedex.AddressType(
                                             streetLines=duty_billing_address.address_lines,
-                                            city=provider_utils.normalize_city(
-                                                duty_billing_address.city,
-                                                duty_billing_address.postal_code,
-                                                duty_billing_address.country_code,
+                                            city=provider_utils.resolved_city(
+                                                duty_billing_address, settings, cities
                                             ),
                                             stateOrProvinceCode=provider_utils.state_code(
                                                 duty_billing_address
@@ -737,10 +747,10 @@ def shipment_request(
                                     address=lib.identity(
                                         fedex.AddressType(
                                             streetLines=(duty_billing_address or shipper).address_lines,
-                                            city=provider_utils.normalize_city(
-                                                (duty_billing_address or shipper).city,
-                                                (duty_billing_address or shipper).postal_code,
-                                                (duty_billing_address or shipper).country_code,
+                                            city=provider_utils.resolved_city(
+                                                duty_billing_address or shipper,
+                                                settings,
+                                                cities,
                                             ),
                                             stateOrProvinceCode=provider_utils.state_code(
                                                 duty_billing_address or shipper
@@ -866,5 +876,6 @@ def shipment_request(
             shipment_date=shipment_date,
             label_type=label_type,
             label_format=label_format,
+            resolved_addresses=resolved_addresses,
         ),
     )
