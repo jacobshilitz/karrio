@@ -100,3 +100,84 @@ def state_code(address: lib.units.ComputedAddress) -> str:
         if address.state_code.lower() == "qc" and address.country_code == "CA"
         else address.state_code
     )
+
+
+# Former Toronto municipalities FedEx often rejects for M* postals.
+_TORONTO_BOROUGHS = {
+    "NORTH YORK",
+    "SCARBOROUGH",
+    "ETOBICOKE",
+    "EAST YORK",
+    "YORK",
+    "WILLOWDALE",
+    "DON MILLS",
+    "WESTON",
+    "REXALE",
+    "REXDALE",
+    "DOWNSVIEW",
+    "EAST YORK",
+}
+
+# Official / postal-city names FedEx accepts (from prod POSTALCITY.MISMATCH).
+_CITY_ALIASES = {
+    "GREATER SUDBURY": "Sudbury",
+    "POINT CLAIRE": "Pointe-Claire",
+    "POINTE CLAIRE": "Pointe-Claire",
+    "WHITCHURCH-STOUFFVILLE": "Stouffville",
+    "WHITCHURCH STOUFFVILLE": "Stouffville",
+    "ASPHODAL-NORWOOD": "Norwood",
+    "ASPHODAL NORWOOD": "Norwood",
+    "ASPHODEL-NORWOOD": "Norwood",
+    "ASPHODEL NORWOOD": "Norwood",
+    "NEW TECUMSETH": "Alliston",
+    "QUINTE WEST": "Trenton",
+    "CORMAN PARK": "Saskatoon",
+    "NORTH SAANICH": "Sidney",
+    "GUELPH/ERAMOSA": "Guelph",
+    "GUELPH ERAMOSA": "Guelph",
+    "CENTRE WELLINGTON": "Fergus",
+    "GEORGINA": "Keswick",
+    "LES CEDRES": "Les Cedres",
+    "COTE SAINT-LUC": "Cote Saint-Luc",
+    "COTE-SAINT-LUC": "Cote Saint-Luc",
+    "KAWARTHA LAKES": "Lindsay",
+    "CHATHAM-KENT": "Chatham",
+    "CHATHAM KENT": "Chatham",
+}
+
+# When the municipality name is wrong for the FSA (prod offenders).
+_FSA_CITY_OVERRIDE = {
+    "L5J": "Mississauga",  # often labeled Oakville
+    "M6S": "Toronto",  # often labeled Mississauga
+}
+
+
+def normalize_city(
+    city: typing.Optional[str],
+    postal_code: typing.Optional[str] = None,
+    country_code: typing.Optional[str] = None,
+) -> typing.Optional[str]:
+    """Map common CA city labels to FedEx-accepted postal cities.
+
+    Reduces DESTINATION.POSTALCITY.MISMATCH noise from amalgamated
+    municipalities, Toronto boroughs, and known misspellings.
+    """
+    if not city:
+        return city
+
+    fsa = (postal_code or "").replace(" ", "").upper()[:3]
+    key = " ".join(city.strip().upper().replace("/", " ").split())
+
+    if country_code == "CA" and fsa in _FSA_CITY_OVERRIDE:
+        return _FSA_CITY_OVERRIDE[fsa]
+
+    if country_code == "CA" and fsa.startswith("M") and key in _TORONTO_BOROUGHS:
+        return "Toronto"
+
+    if key in _CITY_ALIASES:
+        return _CITY_ALIASES[key]
+
+    if key.startswith("GREATER ") and len(key) > 8:
+        return city.strip()[8:].strip() or city
+
+    return city

@@ -188,7 +188,9 @@ def rate_request(
             shipper=fedex.ShipperClassType(
                 address=fedex.ResponsiblePartyAddressType(
                     streetLines=shipper.address_lines,
-                    city=shipper.city,
+                    city=provider_utils.normalize_city(
+                        shipper.city, shipper.postal_code, shipper.country_code
+                    ),
                     stateOrProvinceCode=provider_utils.state_code(shipper),
                     postalCode=shipper.postal_code,
                     countryCode=shipper.country_code,
@@ -198,7 +200,11 @@ def rate_request(
             recipient=fedex.ShipperClassType(
                 address=fedex.ResponsiblePartyAddressType(
                     streetLines=recipient.address_lines,
-                    city=recipient.city,
+                    city=provider_utils.normalize_city(
+                        recipient.city,
+                        recipient.postal_code,
+                        recipient.country_code,
+                    ),
                     stateOrProvinceCode=provider_utils.state_code(recipient),
                     postalCode=recipient.postal_code,
                     countryCode=recipient.country_code,
